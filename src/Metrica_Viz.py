@@ -14,6 +14,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import matplotlib.animation as animation
 
+twitter_color = "#141d26"
 
 def plot_pitch( field_dimen = (106.0,68.0), field_color ='green', linewidth=2, markersize=20):
     """ plot_pitch
@@ -36,11 +37,21 @@ def plot_pitch( field_dimen = (106.0,68.0), field_color ='green', linewidth=2, m
     # decide what color we want the field to be. Default is green, but can also choose white
     if field_color=='green':
         ax.set_facecolor('mediumseagreen')
+        fig.patch.set_facecolor('mediumseagreen')
         lc = 'whitesmoke' # line color
         pc = 'w' # 'spot' colors
     elif field_color=='white':
         lc = 'k'
         pc = 'k'
+    elif field_color=='twitter_dark_mode':
+        ax.set_facecolor(twitter_color)
+        fig.patch.set_facecolor(twitter_color)
+        lc = 'whitesmoke'
+        pc = 'w'
+    else:
+        print(f'{field_color} does not exist in setting...')
+        exit()
+
     # ALL DIMENSIONS IN m
     border_dimen = (3,3) # include a border arround of the field of width 3m
     meters_per_yard = 0.9144 # unit conversion from yards to meters
@@ -134,15 +145,15 @@ def plot_frame( hometeam, awayteam, figax=None, team_colors=('r','b'), field_dim
     for team,color in zip( [hometeam,awayteam], team_colors) :
         x_columns = [c for c in team.keys() if c[-2:].lower()=='_x' and c!='ball_x'] # column header for player x positions
         y_columns = [c for c in team.keys() if c[-2:].lower()=='_y' and c!='ball_y'] # column header for player y positions
-        ax.plot( team[x_columns], team[y_columns], color+'o', MarkerSize=PlayerMarkerSize, alpha=PlayerAlpha ) # plot player positions
+        ax.plot( team[x_columns], team[y_columns], color=color, marker='o', MarkerSize=PlayerMarkerSize, linestyle='None', alpha=PlayerAlpha ) # plot player positions
         if include_player_velocities:
             vx_columns = ['{}_vx'.format(c[:-2]) for c in x_columns] # column header for player x positions
             vy_columns = ['{}_vy'.format(c[:-2]) for c in y_columns] # column header for player y positions
             ax.quiver( team[x_columns], team[y_columns], team[vx_columns], team[vy_columns], color=color, scale_units='inches', scale=10.,width=0.0015,headlength=5,headwidth=3,alpha=PlayerAlpha)
         if annotate:
-            [ ax.text( team[x]+0.5, team[y]+0.5, x.split('_')[1], fontsize=10, color=color  ) for x,y in zip(x_columns,y_columns) if not ( np.isnan(team[x]) or np.isnan(team[y]) ) ] 
+            [ax.text( team[x]+0.5, team[y]+0.5, x.split('_')[1], fontsize=10, color=color) for x,y in zip(x_columns,y_columns) if not (np.isnan(team[x]) or np.isnan(team[y]))] 
     # plot ball
-    ax.plot( hometeam['ball_x'], hometeam['ball_y'], 'ko', MarkerSize=6, alpha=1.0, LineWidth=0)
+    ax.plot( hometeam['ball_x'], hometeam['ball_y'], color='yellow', marker='o', MarkerSize=6, alpha=1.0, LineWidth=0)
     return fig,ax
     
 def save_match_clip(hometeam,awayteam, fpath, fname='clip_test', figax=None, frames_per_second=25, team_colors=('r','b'), field_dimen = (106.0,68.0), include_player_velocities=False, PlayerMarkerSize=10, PlayerAlpha=0.7):
@@ -192,7 +203,7 @@ def save_match_clip(hometeam,awayteam, fpath, fname='clip_test', figax=None, fra
             for team,color in zip( [hometeam.loc[i],awayteam.loc[i]], team_colors) :
                 x_columns = [c for c in team.keys() if c[-2:].lower()=='_x' and c!='ball_x'] # column header for player x positions
                 y_columns = [c for c in team.keys() if c[-2:].lower()=='_y' and c!='ball_y'] # column header for player y positions
-                objs, = ax.plot( team[x_columns], team[y_columns], color+'o', MarkerSize=PlayerMarkerSize, alpha=PlayerAlpha ) # plot player positions
+                objs, = ax.plot( team[x_columns], team[y_columns], color=color, linestyle='None', marker='o', MarkerSize=PlayerMarkerSize, alpha=PlayerAlpha ) # plot player positions
                 figobjs.append(objs)
                 if include_player_velocities:
                     vx_columns = ['{}_vx'.format(c[:-2]) for c in x_columns] # column header for player x positions
@@ -200,7 +211,7 @@ def save_match_clip(hometeam,awayteam, fpath, fname='clip_test', figax=None, fra
                     objs = ax.quiver( team[x_columns], team[y_columns], team[vx_columns], team[vy_columns], color=color, scale_units='inches', scale=10.,width=0.0015,headlength=5,headwidth=3,alpha=PlayerAlpha)
                     figobjs.append(objs)
             # plot ball
-            objs, = ax.plot( team['ball_x'], team['ball_y'], 'ko', MarkerSize=6, alpha=1.0, LineWidth=0)
+            objs, = ax.plot( team['ball_x'], team['ball_y'], color='yellow', marker='o', MarkerSize=6, alpha=1.0, LineWidth=0)
             figobjs.append(objs)
             # include match time at the top
             frame_minute =  int( team['Time [s]']/60. )
@@ -245,7 +256,7 @@ def plot_events( events, figax=None, field_dimen = (106.0,68), indicators = ['Ma
         fig,ax = figax 
     for i,row in events.iterrows():
         if 'Marker' in indicators:
-            ax.plot(  row['Start X'], row['Start Y'], color+marker_style, alpha=alpha )
+            ax.plot(  row['Start X'], row['Start Y'], color=color, marker=marker_style, alpha=alpha)
         if 'Arrow' in indicators:
             ax.annotate("", xy=row[['End X','End Y']], xytext=row[['Start X','Start Y']], alpha=alpha, arrowprops=dict(alpha=alpha,arrowstyle="->",color=color),annotation_clip=False)
         if annotate:
