@@ -217,7 +217,7 @@ def save_match_clip(hometeam,awayteam, fpath, fname='clip_test', figax=None, fra
             frame_minute =  int( team['Time [s]']/60. )
             frame_second =  ( team['Time [s]']/60. - frame_minute ) * 60.
             timestring = "%d:%1.2f" % ( frame_minute, frame_second  )
-            objs = ax.text(-2.5,field_dimen[1]/2.+1., timestring, fontsize=14 )
+            objs = ax.text(-2.5,field_dimen[1]/2.+1., timestring, fontsize=14, color='w')
             figobjs.append(objs)
             writer.grab_frame()
             # Delete all axis objects (other than pitch lines) in preperation for next frame
