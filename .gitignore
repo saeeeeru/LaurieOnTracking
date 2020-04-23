@@ -2,6 +2,8 @@
 .DS_Store
 .vscode/
 
+AutoFormationDetector
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
