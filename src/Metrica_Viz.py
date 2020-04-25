@@ -266,7 +266,7 @@ def plot_events( events, figax=None, field_dimen = (106.0,68), indicators = ['Ma
             ax.text( row['Start X'], row['Start Y'], textstring, fontsize=10, color=color)
     return fig,ax
 
-def plot_pitchcontrol_for_event( event_id, events,  tracking_home, tracking_away, PPCF, xgrid, ygrid, alpha = 0.7, include_player_velocities=True, annotate=False, field_dimen = (106.0,68)):
+def plot_pitchcontrol_for_event( event_id, events,  tracking_home, tracking_away, PPCF, xgrid, ygrid, figax=None, alpha = 0.7, include_player_velocities=True, annotate=False, field_dimen = (106.0,68)):
     """ plot_pitchcontrol_for_event( event_id, events,  tracking_home, tracking_away, PPCF, xgrid, ygrid )
     
     Plots the pitch control surface at the instant of the event given by the event_id. Player and ball positions are overlaid.
@@ -280,6 +280,7 @@ def plot_pitchcontrol_for_event( event_id, events,  tracking_home, tracking_away
         PPCF: Pitch control surface (dimen (n_grid_cells_x,n_grid_cells_y) ) containing pitch control probability for the attcking team (as returned by the generate_pitch_control_for_event in Metrica_PitchControl)
         xgrid: Positions of the pixels in the x-direction (field length) as returned by the generate_pitch_control_for_event in Metrica_PitchControl
         ygrid: Positions of the pixels in the y-direction (field width) as returned by the generate_pitch_control_for_event in Metrica_PitchControl
+        figax: 
         alpha: alpha (transparency) of player markers. Default is 0.7
         include_player_velocities: Boolean variable that determines whether player velocities are also plotted (as quivers). Default is False
         annotate: Boolean variable that determines with player jersey numbers are added to the plot (default is False)
@@ -289,14 +290,18 @@ def plot_pitchcontrol_for_event( event_id, events,  tracking_home, tracking_away
     -----------
        fig,ax : figure and aixs objects (so that other data can be plotted onto the pitch)
 
-    """    
+    """  
 
     # pick a pass at which to generate the pitch control surface
     pass_frame = events.loc[event_id]['Start Frame']
     pass_team = events.loc[event_id].Team
     
     # plot frame and event
-    fig,ax = plot_pitch(field_color='white', field_dimen = field_dimen)
+    if figax is None: # create new pitch 
+        fig,ax = plot_pitch(field_color='white', field_dimen = field_dimen)
+    else: # overlay on a previously generated pitch
+        fig,ax = figax 
+    
     plot_frame( tracking_home.loc[pass_frame], tracking_away.loc[pass_frame], figax=(fig,ax), PlayerAlpha=alpha, include_player_velocities=include_player_velocities, annotate=annotate )
     plot_events( events.loc[event_id:event_id], figax = (fig,ax), indicators = ['Marker','Arrow'], annotate=False, color= 'k', alpha=1 )
     
