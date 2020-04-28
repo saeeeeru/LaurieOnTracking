@@ -158,7 +158,7 @@ def plot_frame( hometeam, awayteam, figax=None, team_colors=('r','b'), field_dim
     ax.plot( hometeam['ball_x'], hometeam['ball_y'], color='yellow', marker='o', MarkerSize=6, alpha=1.0, LineWidth=0)
     return fig,ax
     
-def save_match_clip(hometeam,awayteam, fpath, fname='clip_test', figax=None, frames_per_second=25, team_colors=('r','b'), field_dimen = (106.0,68.0), include_player_velocities=False, PlayerMarkerSize=10, PlayerAlpha=0.7):
+def save_match_clip(hometeam,awayteam, fpath, fname='clip_test', figax=None, frames_per_second=25, team_colors=('r','b'), field_dimen = (106.0,68.0), title=None, include_player_velocities=False, PlayerMarkerSize=10, PlayerAlpha=0.7):
     """ save_match_clip( hometeam, awayteam, fpath )
     
     Generates a movie from Metrica tracking data, saving it in the 'fpath' directory with name 'fname'
@@ -173,6 +173,7 @@ def save_match_clip(hometeam,awayteam, fpath, fname='clip_test', figax=None, fra
         frames_per_second: frames per second to assume when generating the movie. Default is 25.
         team_colors: Tuple containing the team colors of the home & away team. Default is 'r' (red, home team) and 'b' (blue away team)
         field_dimen: tuple containing the length and width of the pitch in meters. Default is (106,68)
+        title: string
         include_player_velocities: Boolean variable that determines whether player velocities are also plotted (as quivers). Default is False
         PlayerMarkerSize: size of the individual player marlers. Default is 10
         PlayerAlpha: alpha (transparency) of player markers. Defaault is 0.7
@@ -216,10 +217,13 @@ def save_match_clip(hometeam,awayteam, fpath, fname='clip_test', figax=None, fra
             objs, = ax.plot( team['ball_x'], team['ball_y'], color='yellow', marker='o', MarkerSize=6, alpha=1.0, LineWidth=0)
             figobjs.append(objs)
             # include match time at the top
-            frame_minute =  int( team['Time [s]']/60. )
-            frame_second =  ( team['Time [s]']/60. - frame_minute ) * 60.
-            timestring = "%d:%1.2f" % ( frame_minute, frame_second  )
-            objs = ax.text(-2.5,field_dimen[1]/2.+1., timestring, fontsize=14, color='w')
+            if title:
+                objs = ax.text(-2.5,field_dimen[1]/2.+1., title, fontsize=14, color='w')
+            else:
+                frame_minute =  int( team['Time [s]']/60. )
+                frame_second =  ( team['Time [s]']/60. - frame_minute ) * 60.
+                timestring = "%d:%1.2f" % ( frame_minute, frame_second  )
+                objs = ax.text(-2.5,field_dimen[1]/2.+1., timestring, fontsize=14, color='w')
             figobjs.append(objs)
             writer.grab_frame()
             # Delete all axis objects (other than pitch lines) in preperation for next frame
