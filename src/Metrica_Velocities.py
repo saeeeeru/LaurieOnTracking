@@ -13,7 +13,7 @@ Data can be found at: https://github.com/metrica-sports/sample-data
 import numpy as np
 import scipy.signal as signal
 
-def calc_player_velocities(team, smoothing=True, filter_='Savitzky-Golay', window=7, polyorder=1, maxspeed = 12):
+def calc_player_velocities(team, smoothing=True, filter_='Savitzky-Golay', window=7, polyorder=1, maxspeed = 12, data_type='metrica'):
     """ calc_player_velocities( tracking_data )
     
     Calculate player velocities in x & y direciton, and total player speed at each timestamp of the tracking data
@@ -36,13 +36,18 @@ def calc_player_velocities(team, smoothing=True, filter_='Savitzky-Golay', windo
     team = remove_player_velocities(team)
     
     # Get the player ids
-    player_ids = np.unique( [ c[:-2] for c in team.columns if c[:4] in ['Home','Away'] ] )
+    if data_type == 'metrica':
+        player_ids = np.unique( [ c[:-2] for c in team.columns if c[:4] in ['Home','Away'] ] )
+    elif data_type == 'liverpool':
+        player_ids = np.unique([c.split('_')[0] for c in team.columns if not c in ['ball_x', 'ball_y', 'Time [s]']])
 
     # Calculate the timestep from one frame to the next. Should always be 0.04 within the same half
     dt = team['Time [s]'].diff()
     
     # index of first frame in second half
-    second_half_idx = team.Period.idxmax(2)
+    period_flg = data_type == 'metrica'
+    if period_flg:
+        second_half_idx = team.Period.idxmax(2)
     
     # estimate velocities for players in team
     for player in player_ids: # cycle through players individually
@@ -58,20 +63,28 @@ def calc_player_velocities(team, smoothing=True, filter_='Savitzky-Golay', windo
             
         if smoothing:
             if filter_=='Savitzky-Golay':
-                # calculate first half velocity
-                vx.loc[:second_half_idx] = signal.savgol_filter(vx.loc[:second_half_idx],window_length=window,polyorder=polyorder)
-                vy.loc[:second_half_idx] = signal.savgol_filter(vy.loc[:second_half_idx],window_length=window,polyorder=polyorder)        
-                # calculate second half velocity
-                vx.loc[second_half_idx:] = signal.savgol_filter(vx.loc[second_half_idx:],window_length=window,polyorder=polyorder)
-                vy.loc[second_half_idx:] = signal.savgol_filter(vy.loc[second_half_idx:],window_length=window,polyorder=polyorder)
+                if period_flg:
+                    # calculate first half velocity
+                    vx.loc[:second_half_idx] = signal.savgol_filter(vx.loc[:second_half_idx],window_length=window,polyorder=polyorder)
+                    vy.loc[:second_half_idx] = signal.savgol_filter(vy.loc[:second_half_idx],window_length=window,polyorder=polyorder)        
+                    # calculate second half velocity
+                    vx.loc[second_half_idx:] = signal.savgol_filter(vx.loc[second_half_idx:],window_length=window,polyorder=polyorder)
+                    vy.loc[second_half_idx:] = signal.savgol_filter(vy.loc[second_half_idx:],window_length=window,polyorder=polyorder)
+                else:
+                    vx = signal.savgol_filter(vx,window_length=window,polyorder=polyorder)
+                    vy = signal.savgol_filter(vy,window_length=window,polyorder=polyorder)
             elif filter_=='moving average':
                 ma_window = np.ones( window ) / window 
-                # calculate first half velocity
-                vx.loc[:second_half_idx] = np.convolve( vx.loc[:second_half_idx] , ma_window, mode='same' ) 
-                vy.loc[:second_half_idx] = np.convolve( vy.loc[:second_half_idx] , ma_window, mode='same' )      
-                # calculate second half velocity
-                vx.loc[second_half_idx:] = np.convolve( vx.loc[second_half_idx:] , ma_window, mode='same' ) 
-                vy.loc[second_half_idx:] = np.convolve( vy.loc[second_half_idx:] , ma_window, mode='same' ) 
+                if period_flg:
+                    # calculate first half velocity
+                    vx.loc[:second_half_idx] = np.convolve( vx.loc[:second_half_idx] , ma_window, mode='same' ) 
+                    vy.loc[:second_half_idx] = np.convolve( vy.loc[:second_half_idx] , ma_window, mode='same' )      
+                    # calculate second half velocity
+                    vx.loc[second_half_idx:] = np.convolve( vx.loc[second_half_idx:] , ma_window, mode='same' ) 
+                    vy.loc[second_half_idx:] = np.convolve( vy.loc[second_half_idx:] , ma_window, mode='same' ) 
+                else:
+                    vx = np.convolve( vx , ma_window, mode='same' ) 
+                    vy = np.convolve( vy , ma_window, mode='same' )
                 
         
         # put player speed in x,y direction, and total speed back in the data frame
