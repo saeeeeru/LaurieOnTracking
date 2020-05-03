@@ -23,3 +23,16 @@ Using tracking data to add further context to football analytics. This tutorial 
 Tutorial3: https://www.youtube.com/watch?v=5X1cSehLg6s
 
 Building your own pitch control model in python and using it to evaluate a player's passing options. Pitch control measures the probability that a team will retain possession of the ball if they pass it to another location on the field. It can be used to evaluate passing options for a player, and quantify the probability of success.
+
+Directory Tree
+-----------------
+
+    .
+    ├─ models/     : dumped model files
+    ├─ notebooks/  : jupyter notebooks
+    ├─ reports/    : for reporting
+    │   ├─ figure/     : .png, ...
+    │   └─ movie/      : .mp4, ....
+    └─ src/        : source program
+
+source program is pulled from [LaurieOnTracking](https://github.com/Friends-of-Tracking-Data-FoTD/LaurieOnTracking), [FoT-Player-Pitch-Control-Impact](https://github.com/andrewsimplebet/FoT-Player-Pitch-Control-Impact)
