@@ -8,12 +8,14 @@ Module for visualising Metrica tracking and event data
 Data can be found at: https://github.com/metrica-sports/sample-data
 
 @author: Laurie Shaw (@EightyFivePoint)
+The majority of code in this file can be found from the following Github repo:
+https://github.com/Friends-of-Tracking-Data-FoTD/LaurieOnTracking
 """
 
 import matplotlib.pyplot as plt
 import numpy as np
 import matplotlib.animation as animation
-import Metrica_PitchControl as mpc
+from matplotlib.colors import LinearSegmentedColormap
 
 twitter_color = "#141d26"
 
@@ -270,11 +272,38 @@ def plot_events( events, figax=None, field_dimen = (106.0,68), indicators = ['Ma
             ax.text( row['Start X'], row['Start Y'], textstring, fontsize=10, color=color)
     return fig,ax
 
-def plot_pitchcontrol_for_event( event_id, events,  tracking_home, tracking_away, PPCF, xgrid, ygrid, figax=None, alpha = 0.7, include_player_velocities=True, annotate=False, field_dimen = (106.0,68)):
+# This function is modified from @EightyFivePoint's adaptation. However, there are no breaking changes,
+# so the original syntax/arguments are still valid
+def plot_pitchcontrol_for_event(
+    event_id,
+    events,
+    tracking_home,
+    tracking_away,
+    PPCF,
+    xgrid,
+    ygrid,
+    alpha=0.7,
+    include_player_velocities=True,
+    annotate=False,
+    field_dimen=(106.0, 68),
+    plotting_difference=False,
+    plotting_presence=False,
+    plotting_new_location=False,
+    team_to_plot="Home",
+    player_x_coordinate=None,
+    player_y_coordinate=None,
+    player_id=0,
+    player_x_velocity=0,
+    player_y_velocity=0,
+    cmap_list=[],
+    alpha_pitch_control=0.5,
+    team_colors=("r", "b"),
+    field_color="white"
+):
     """ plot_pitchcontrol_for_event( event_id, events,  tracking_home, tracking_away, PPCF, xgrid, ygrid )
-    
+
     Plots the pitch control surface at the instant of the event given by the event_id. Player and ball positions are overlaid.
-    
+
     Parameters
     -----------
         event_id: Index (not row) of the event that describes the instant at which the pitch control surface should be calculated
@@ -284,51 +313,211 @@ def plot_pitchcontrol_for_event( event_id, events,  tracking_home, tracking_away
         PPCF: Pitch control surface (dimen (n_grid_cells_x,n_grid_cells_y) ) containing pitch control probability for the attcking team (as returned by the generate_pitch_control_for_event in Metrica_PitchControl)
         xgrid: Positions of the pixels in the x-direction (field length) as returned by the generate_pitch_control_for_event in Metrica_PitchControl
         ygrid: Positions of the pixels in the y-direction (field width) as returned by the generate_pitch_control_for_event in Metrica_PitchControl
-        figax: 
         alpha: alpha (transparency) of player markers. Default is 0.7
         include_player_velocities: Boolean variable that determines whether player velocities are also plotted (as quivers). Default is False
         annotate: Boolean variable that determines with player jersey numbers are added to the plot (default is False)
         field_dimen: tuple containing the length and width of the pitch in meters. Default is (106,68)
-        
+        plotting_difference: Tells us if we are plotting a difference of pitch controls
+        cmap_list: List of colors to use in the pitch control spaces for each team. Default is an empty list.
+        alpha_pitch_control: alpha (transparency) of spaces heatmap. Default is 0.5
+        team_colors: Tuple containing the team colors of the home & away team. Default is 'r' (red, home team) and 'b' (blue away team)
+        field_color: color of the field. Default is green.
+
     Returrns
     -----------
-       fig,ax : figure and aixs objects (so that other data can be plotted onto the pitch)
+       fig,ax : figure and axis objects (so that other data can be plotted onto the pitch)
 
-    """  
+    """
 
     # pick a pass at which to generate the pitch control surface
-    pass_frame = events.loc[event_id]['Start Frame']
-    pass_team = events.loc[event_id].Team
-    
+    event_frame = events.loc[event_id]["Start Frame"]
+
+    possession_team = events.loc[event_id].Team
+
     # plot frame and event
-    if figax is None: # create new pitch 
-        fig,ax = plot_pitch(field_color='white', field_dimen = field_dimen)
-    else: # overlay on a previously generated pitch
-        fig,ax = figax 
-    
-    plot_frame( tracking_home.loc[pass_frame], tracking_away.loc[pass_frame], figax=(fig,ax), PlayerAlpha=alpha, include_player_velocities=include_player_velocities, annotate=annotate )
-    plot_events( events.loc[event_id:event_id], figax = (fig,ax), indicators = ['Marker','Arrow'], annotate=False, color= 'k', alpha=1 )
-    
-    # plot pitch control surface
-    if pass_team=='Home':
-        cmap = 'bwr'
+    fig, ax = plot_pitch(field_color=field_color, field_dimen=field_dimen)
+    plot_frame(
+        tracking_home.loc[event_frame],
+        tracking_away.loc[event_frame],
+        figax=(fig, ax),
+        team_colors=team_colors,
+        PlayerAlpha=alpha,
+        include_player_velocities=include_player_velocities,
+        annotate=annotate,
+    )
+    plot_events(
+        events.loc[event_id:event_id],
+        figax=(fig, ax),
+        indicators=["Marker", "Arrow"],
+        annotate=False,
+        color="k",
+        alpha=1,
+    )
+    # If we want to add a new player, plot a new player on the pitch
+    if plotting_new_location:
+        print("Plotting new location")
+        plot_new_player(
+            player_x_coordinate=player_x_coordinate,
+            player_y_coordinate=player_y_coordinate,
+            player_x_velocity=player_x_velocity,
+            player_y_velocity=player_y_velocity,
+            figax=(fig, ax),
+            PlayerAlpha=alpha,
+            include_player_velocities=include_player_velocities,
+            annotate=annotate,
+            player_id=player_id,
+        )
+        PPCF = -1 * PPCF
+
+    # If we need to apply a transformation to ensure the 0 points are white, apply the transformation
+    if plotting_difference:
+        PPCF = convert_pitch_control_for_cmap(PPCF)
+
+    home_presence_cmap = 'Reds'
+    away_presence_cmap = 'Blues'
+
+    home_cmap = 'bwr'
+    away_cmap = 'bwr_r'
+
+    if len(cmap_list):
+        home_presence_cmap = LinearSegmentedColormap.from_list("", cmap_list[len(cmap_list) // 2:])
+        away_presence_cmap = LinearSegmentedColormap.from_list("", cmap_list[:len(cmap_list) // 2][::-1])
+        home_cmap = LinearSegmentedColormap.from_list("", cmap_list)
+        away_cmap = LinearSegmentedColormap.from_list("", cmap_list[::-1])
+
+    # If we are plotting a player's space captured, apply a specific cmap
+    if plotting_presence:
+        if team_to_plot != possession_team:
+            PPCF = -1 * PPCF
+        if team_to_plot == "Home":
+            cmap = home_presence_cmap
+        else:
+            cmap = away_presence_cmap
+
+    # Otherwise, apply the default heatmap from the original function
     else:
-        cmap = 'bwr_r'
-    ax.imshow(np.flipud(PPCF), extent=(np.amin(xgrid), np.amax(xgrid), np.amin(ygrid), np.amax(ygrid)),interpolation='hanning',vmin=0.0,vmax=1.0,cmap=cmap,alpha=0.5)
-    
-    return fig,ax
+        if possession_team == "Home":
+            cmap = home_cmap
+        else:
+            cmap = away_cmap
+
+    # plot pitch control surface
+    ax.imshow(
+        np.flipud(PPCF),
+        extent=(np.amin(xgrid), np.amax(xgrid), np.amin(ygrid), np.amax(ygrid)),
+        interpolation="lanczos",
+        vmin=0.0,
+        vmax=1.0,
+        alpha=alpha_pitch_control,
+        cmap=cmap,
+    )
+    return fig, ax
 
 
+def plot_new_player(
+    player_x_coordinate,
+    player_y_coordinate,
+    player_x_velocity,
+    player_y_velocity,
+    player_id,
+    color="g",
+    figax=None,
+    include_player_velocities=False,
+    PlayerMarkerSize=12,
+    PlayerAlpha=0.7,
+    annotate=False,
+):
+    """
+    Function description:
+        This function allows us to overlay a new location for a player, along with a velocity vector on top of an
+        existing surface. The code uses the same logic as ``plot_frame``, but is altered to incorporate only adding
+        one new player.
+
+    Input parameters:
+    :param float player_x_coordinate: x coordinate of the new player's location
+    :param float player_y_coordinate: y coordinate of the new player's location
+    :param float player_x_velocity: x component of the new player's velocity vector
+    :param float player_y_velocity: y component of the new player's velocity vector
+    :param int player_id: ID number of the new player
+    :param string color: Color to
+    :param fig,ax: Can be used to pass in the (fig,ax) objects of a previously generated pitch. Set to (fig,ax) to use
+        an existing figure, or None (the default) to generate a new pitch plot.
+    The remainder of the parameters are inherited from either ``plot_event`` or ``plot_frame``
+
+    Returns:
+    fig,ax : figure and aixs objects (so that other data can be plotted onto the pitch)
+
+    """
+    fig, ax = figax  # unpack tuple
+    # Plot New Player
+
+    ax.plot(
+        player_x_coordinate,
+        player_y_coordinate,
+        color=color,
+        marker="o",
+        MarkerSize=PlayerMarkerSize,
+        alpha=PlayerAlpha,
+    )
+    if include_player_velocities:
+        ax.quiver(
+            player_x_coordinate,
+            player_y_coordinate,
+            player_x_velocity,
+            player_y_velocity,
+            color=color,
+            alpha=PlayerAlpha,
+            scale_units="inches",
+            scale=10.0,
+            width=0.0015,
+            headlength=5,
+            headwidth=3,
+        )
+    if annotate:
+        ax.text(
+            player_x_coordinate + 0.6,
+            player_y_coordinate + 0.6,
+            str(player_id),
+            fontsize=12,
+            color=color,
+        )
+    return fig, ax
 
 
+def convert_pitch_control_for_cmap(pitch_control):
+    """
+    Function Description:
+    This function converts a pitch control surface with negative values to a surface that can be used appropriately
+    with a cmap. The issue was that we need the minimum value to map to 0, the maximum value to map  to 0.5, and the
+    maximum value to map to 1 in order for the plot to plot the unaffected areas of the pitch white. The transformations
+    done in this function are the solutions of a system of equations to map these 3 values to their desired targets.
 
+    There is likely a better solution to this problem than what is done here, so I am open to reviewing pull requests to
+    improve this. Currently, the main flaw of this solution is that the intensity of the colors can be misleading.
+    If the min value is -0.1 while the max value is 0.9, the min and max values will still be displayed with the same
+    intensity due to this transformation. Thus, I don't recommended plotting the off ball movement of players who are
+    barely moving during the event until a better solution can be reached.
 
+    Input parameters:
+    :param pitch_control: An ndarray that represents the difference between two pitch control arrays
 
-
-
-
-
-
-
-
-
+    Returns:
+    :return: An adjusted surface to be passed into ``plot_pitch_control_for_event``
+    """
+    min_value = pitch_control.min()
+    max_value = pitch_control.max()
+    quadratic_coef = (
+        0.5
+        * (min_value + max_value)
+        / ((max_value * min_value) * (max_value - min_value))
+    )
+    linear_coef = (
+        0.5
+        * (min_value ** 2 + max_value ** 2)
+        / ((min_value * max_value) * max_value * min_value)
+    )
+    constant_term = 0.5
+    quadratic_array = quadratic_coef * np.square(pitch_control)
+    linear_array = linear_coef * pitch_control
+    constant_array = constant_term + 0 * pitch_control
+    return quadratic_array + linear_array + constant_array
